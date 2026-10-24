@@ -16,6 +16,9 @@ export default defineConfig({
       'core-js': path.resolve(__dirname, 'src/utils/emptyModule.js')
     }
   },
+  optimizeDeps: {
+    exclude: ['canvg', 'core-js']
+  },
   server: {
     port: 5173,
     proxy: {
