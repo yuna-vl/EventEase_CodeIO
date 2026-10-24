@@ -131,7 +131,7 @@ export default function RoleAuth({
             if (tokenResponse && tokenResponse.access_token) {
               setLoading(true);
               try {
-                await googleLogin(tokenResponse.access_token, role);
+                await googleLogin({ accessToken: tokenResponse.access_token, role });
                 if (onAuthSuccess) {
                   onAuthSuccess(role);
                 }
@@ -140,11 +140,17 @@ export default function RoleAuth({
               } finally {
                 setLoading(false);
               }
+            } else if (tokenResponse && tokenResponse.error) {
+              setErrorMessage(`Google Sign-In failed: ${tokenResponse.error_description || tokenResponse.error}`);
             }
           },
           error_callback: (error) => {
-            console.warn("Google popup dismissed, opening account chooser:", error);
-            setShowGoogleChooser(true);
+            console.warn("Google popup dismissed or encountered error:", error);
+            if (error?.type === "popup_closed") {
+              setErrorMessage("Google Sign-In popup was closed. Please try again.");
+            } else {
+              setShowGoogleChooser(true);
+            }
           }
         });
 
@@ -153,6 +159,11 @@ export default function RoleAuth({
       } catch (err) {
         console.warn("Failed to launch Google OAuth popup, opening account chooser:", err);
       }
+    }
+
+    if (!clientId) {
+      setErrorMessage("Google OAuth Client ID is not configured (VITE_GOOGLE_CLIENT_ID is missing in Vercel settings).");
+      return;
     }
 
     // Direct Google Account Chooser (works in any dev or production environment)

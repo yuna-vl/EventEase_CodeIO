@@ -1,7 +1,17 @@
 import jwt from "jsonwebtoken";
+import { OAuth2Client } from "google-auth-library";
 import User from "../models/User.js";
 import Organizer from "../models/Organizer.js";
 import { normalizeRole } from "../middleware/auth.js";
+
+/**
+ * Safely masks a token or client ID for secure diagnostic logging.
+ */
+const safeMask = (val) => {
+  if (!val || typeof val !== "string") return "[none]";
+  if (val.length <= 10) return "***";
+  return `${val.slice(0, 4)}...${val.slice(-4)}`;
+};
 
 /**
  * Generate a signed JWT token containing user identity and role.
@@ -251,57 +261,130 @@ export const signupUser = async (req, res) => {
  */
 export const googleAuth = async (req, res) => {
   try {
-    const { credential, accessToken, role = "student" } = req.body;
+    let { credential, accessToken, token: legacyToken, role = "student" } = req.body;
+
+    // Support token field alias
+    if (!credential && !accessToken && legacyToken) {
+      if (typeof legacyToken === "string" && (legacyToken.startsWith("ey") || legacyToken.split(".").length === 3)) {
+        credential = legacyToken;
+      } else {
+        accessToken = legacyToken;
+      }
+    }
+
+    // Auto-detect payload confusion:
+    // If credential was sent but is actually an OAuth access token (e.g. ya29... or no JWT dot-separation)
+    if (credential && typeof credential === "string") {
+      const isJwt = credential.startsWith("ey") || (credential.includes(".") && credential.split(".").length === 3);
+      if (!isJwt) {
+        if (!accessToken) accessToken = credential;
+        credential = null;
+      }
+    }
+
+    // If accessToken was sent but is actually a JWT ID token (starts with ey and has 3 parts)
+    if (accessToken && typeof accessToken === "string") {
+      const isJwt = accessToken.startsWith("ey") || (accessToken.includes(".") && accessToken.split(".").length === 3);
+      if (isJwt) {
+        if (!credential) credential = accessToken;
+        accessToken = null;
+      }
+    }
 
     if (!credential && !accessToken && !req.body.profile) {
       return res.status(400).json({
         success: false,
-        message: "Google authentication credential or access token is required"
+        message: "Google authentication credential (ID token) or access token is required."
+      });
+    }
+
+    const configuredClientId = (process.env.GOOGLE_CLIENT_ID || "").trim();
+
+    // In production, GOOGLE_CLIENT_ID must be configured
+    if (!configuredClientId && process.env.NODE_ENV === "production") {
+      console.error("[Auth] Server configuration error: GOOGLE_CLIENT_ID is not configured in backend environment variables.");
+      return res.status(500).json({
+        success: false,
+        message: "Google authentication is not properly configured on the server. Please ensure GOOGLE_CLIENT_ID is set in backend environment variables."
       });
     }
 
     let googleProfile = null;
+    let verificationError = null;
 
-    // 1. Verify Google ID token via tokeninfo
+    const oauthClient = new OAuth2Client(configuredClientId || undefined);
+
+    // 1. Verify Google ID token (JWT) using google-auth-library
     if (credential) {
       try {
-        const tokenRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
-        if (tokenRes.ok) {
-          const payload = await tokenRes.json();
+        const ticket = await oauthClient.verifyIdToken({
+          idToken: credential,
+          audience: configuredClientId || undefined
+        });
+        const payload = ticket.getPayload();
+        if (payload && payload.email) {
           googleProfile = {
             googleId: payload.sub,
-            email: payload.email?.toLowerCase(),
+            email: payload.email.toLowerCase().trim(),
             name: payload.name || payload.given_name || "Google User",
-            avatar: payload.picture || null
+            avatar: payload.picture || null,
+            emailVerified: payload.email_verified
           };
+        } else {
+          verificationError = new Error("Google ID token payload is missing an email address.");
         }
-      } catch (tokenErr) {
-        console.warn("[Auth] Google tokeninfo verification failed:", tokenErr.message);
+      } catch (idErr) {
+        verificationError = idErr;
+        const msg = idErr.message || "";
+        console.warn(`[Auth] Google ID token verification failed: ${msg.includes("expired") ? "Token expired" : msg.includes("audience") ? "Audience mismatch" : "Invalid credential"}`);
       }
     }
 
-    // 2. Fallback to Google OAuth userinfo endpoint
+    // 2. Verify Google OAuth Access Token via google-auth-library getTokenInfo + userinfo
     if (!googleProfile && accessToken) {
       try {
+        // Verify access token validity and audience via Google's tokeninfo
+        const tokenInfo = await oauthClient.getTokenInfo(accessToken);
+
+        // Verify audience if GOOGLE_CLIENT_ID is configured
+        if (configuredClientId && tokenInfo.aud && tokenInfo.aud !== configuredClientId) {
+          console.warn(`[Auth] Google access token audience mismatch: expected ${safeMask(configuredClientId)}, received ${safeMask(tokenInfo.aud)}`);
+          return res.status(401).json({
+            success: false,
+            message: "Google authentication failed: Token audience mismatch."
+          });
+        }
+
+        // Fetch user profile from Google userinfo endpoint using the verified token
         const userinfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
           headers: { Authorization: `Bearer ${accessToken}` }
         });
+
         if (userinfoRes.ok) {
           const payload = await userinfoRes.json();
-          googleProfile = {
-            googleId: payload.sub,
-            email: payload.email?.toLowerCase(),
-            name: payload.name || "Google User",
-            avatar: payload.picture || null
-          };
+          if (payload && payload.email) {
+            googleProfile = {
+              googleId: payload.sub || tokenInfo.sub,
+              email: payload.email.toLowerCase().trim(),
+              name: payload.name || payload.given_name || "Google User",
+              avatar: payload.picture || null,
+              emailVerified: payload.email_verified || tokenInfo.email_verified
+            };
+            verificationError = null;
+          }
+        } else {
+          verificationError = new Error(`Google userinfo endpoint returned HTTP ${userinfoRes.status}`);
+          console.warn(`[Auth] Google userinfo fetch failed with status ${userinfoRes.status}`);
         }
-      } catch (infoErr) {
-        console.warn("[Auth] Google userinfo verification failed:", infoErr.message);
+      } catch (accessErr) {
+        verificationError = accessErr;
+        const msg = accessErr.message || "";
+        console.warn(`[Auth] Google access token verification failed: ${msg.includes("expired") ? "Token expired" : "Invalid token"}`);
       }
     }
 
-    // 3. Fallback for Google account profile (instant sign in/sign up when client credentials not yet provisioned)
-    if (!googleProfile && req.body.profile) {
+    // 3. Fallback for test / dev environment only (mock profile)
+    if (!googleProfile && req.body.profile && process.env.NODE_ENV !== "production") {
       const { email, name, avatar, googleId } = req.body.profile;
       if (email && typeof email === "string" && email.includes("@")) {
         const cleanEmail = email.toLowerCase().trim();
@@ -315,9 +398,31 @@ export const googleAuth = async (req, res) => {
     }
 
     if (!googleProfile || !googleProfile.email) {
+      if (verificationError) {
+        const errMsg = verificationError.message || "";
+        if (errMsg.toLowerCase().includes("expired")) {
+          return res.status(401).json({
+            success: false,
+            message: "Google authentication token has expired. Please sign in again."
+          });
+        }
+        if (errMsg.toLowerCase().includes("audience") || errMsg.toLowerCase().includes("recipient")) {
+          return res.status(401).json({
+            success: false,
+            message: "Google authentication failed: Client ID mismatch or unauthorized token audience."
+          });
+        }
+        if (verificationError.code === "ENOTFOUND" || verificationError.code === "ETIMEDOUT" || verificationError.name === "FetchError") {
+          return res.status(503).json({
+            success: false,
+            message: "Unable to reach Google authentication servers. Please verify network connectivity and try again."
+          });
+        }
+      }
+
       return res.status(401).json({
         success: false,
-        message: "Failed to verify Google authentication credentials"
+        message: "Failed to verify Google authentication credentials."
       });
     }
 

@@ -22,19 +22,22 @@ const app = express();
 
 // Configure CORS for client access
 const allowedOrigins = [
-  process.env.CLIENT_URL || "http://localhost:5173",
+  process.env.CLIENT_URL,
+  "https://event-ease-code-io.vercel.app",
   "http://localhost:5173",
+  "http://localhost:3000",
   "http://127.0.0.1:5173"
-];
+].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, curl, postman)
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error("Not allowed by CORS"));
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // Dynamically allow Vercel deployment preview / production subdomains
+      if (origin.endsWith(".vercel.app")) return callback(null, true);
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
     },
     credentials: true
   })
@@ -47,8 +50,8 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // Serve uploaded event banner images statically
 app.use("/uploads", express.static(uploadsDir));
 
-// Health Check Endpoint
-app.get("/api/health", (req, res) => {
+// Health Check Endpoints (Root, /health, and /api/health)
+const handleHealthCheck = (req, res) => {
   const dbStatus = getDatabaseStatus();
 
   res.status(200).json({
@@ -57,19 +60,27 @@ app.get("/api/health", (req, res) => {
     database: dbStatus,
     timestamp: new Date().toISOString()
   });
-});
+};
 
-// Authentication Routes
+app.get("/", handleHealthCheck);
+app.get("/health", handleHealthCheck);
+app.get("/api/health", handleHealthCheck);
+
+// Authentication Routes (Supports both /api/auth and /auth prefixes)
 app.use("/api/auth", authRoutes);
+app.use("/auth", authRoutes);
 
-// Event API Routes
+// Event API Routes (Supports both /api/events and /events prefixes)
 app.use("/api/events", eventRoutes);
+app.use("/events", eventRoutes);
 
-// Student Profile Routes
+// Student Profile Routes (Supports both /api/students and /students prefixes)
 app.use("/api/students", studentRoutes);
+app.use("/students", studentRoutes);
 
-// Notification Routes
+// Notification Routes (Supports both /api/notifications and /notifications prefixes)
 app.use("/api/notifications", notificationRoutes);
+app.use("/notifications", notificationRoutes);
 
 // Catch-all 404 Handler for undefined API routes
 app.use((req, res) => {

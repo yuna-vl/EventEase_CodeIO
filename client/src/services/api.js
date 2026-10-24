@@ -4,28 +4,43 @@
  */
 
 const getBaseUrl = () => {
+  let url = "";
   // Vite client environment
   if (typeof import.meta !== "undefined" && import.meta.env) {
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL;
+    url = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "";
   }
   // Node / SSR environment
-  if (typeof process !== "undefined" && process.env) {
-    if (process.env.VITE_API_URL) return process.env.VITE_API_URL;
-    if (process.env.VITE_API_BASE_URL) return process.env.VITE_API_BASE_URL;
+  if (!url && typeof process !== "undefined" && process.env) {
+    url = process.env.VITE_API_URL || process.env.VITE_API_BASE_URL || "";
   }
-  // Fallback to local API (127.0.0.1 avoids Node fetch IPv6 DNS resolution issues on Windows)
-  return "http://127.0.0.1:5000/api";
+  url = (url || "").trim();
+  if (!url) {
+    // Fallback to local API (127.0.0.1 avoids Node fetch IPv6 DNS resolution issues on Windows)
+    return "http://127.0.0.1:5000/api";
+  }
+  // Cleanly strip any trailing slashes
+  while (url.endsWith("/")) {
+    url = url.slice(0, -1);
+  }
+  // Ensure the base URL cleanly includes the /api prefix
+  if (!url.endsWith("/api")) {
+    url = `${url}/api`;
+  }
+  return url;
 };
 
-const RAW_URL = getBaseUrl();
-const API_BASE_URL = RAW_URL.endsWith("/") ? RAW_URL.slice(0, -1) : RAW_URL;
+const API_BASE_URL = getBaseUrl();
 
 /**
  * Generic fetch wrapper with JSON parsing and standardized error handling.
  */
 async function request(endpoint, options = {}) {
-  const url = `${API_BASE_URL}${endpoint}`;
+  let cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  // Prevent duplicate /api/api if endpoint already started with /api
+  if (API_BASE_URL.endsWith("/api") && cleanEndpoint.startsWith("/api/")) {
+    cleanEndpoint = cleanEndpoint.slice(4);
+  }
+  const url = `${API_BASE_URL}${cleanEndpoint}`;
   const headers = {
     "Content-Type": "application/json",
     ...(options.headers || {})

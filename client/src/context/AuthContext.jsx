@@ -115,7 +115,11 @@ export function AuthProvider({ children }) {
   const googleLogin = async (payloadOrToken, roleIfString) => {
     let payload = {};
     if (typeof payloadOrToken === "string") {
-      if (payloadOrToken.length > 200) {
+      const isJwt =
+        payloadOrToken.startsWith("ey") ||
+        (payloadOrToken.includes(".") && payloadOrToken.split(".").length === 3);
+
+      if (isJwt) {
         payload = { credential: payloadOrToken, role: roleIfString || "student" };
       } else {
         payload = { accessToken: payloadOrToken, role: roleIfString || "student" };
