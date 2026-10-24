@@ -1,0 +1,174 @@
+:root {
+  color-scheme: dark;
+  /* ==========================================================================
+     EventEase Design Tokens — Dark Cinematic Glassmorphism Identity
+     Inspired by the new reference image:
+     Deep dark charcoal, soft purple/magenta ambient glows, and translucent glass.
+     ========================================================================== */
+
+  /* Core Canvas & Surfaces */
+  --color-bg-main: #0B0A0F;
+  --color-surface-elevated: #15131B;
+  --color-surface-secondary: #201A25;
+  --color-surface-card: rgba(21, 19, 27, 0.72);
+  --color-surface-card-hover: rgba(32, 26, 37, 0.85);
+
+  /* Translucent Glass System */
+  --glass-surface: rgba(255, 255, 255, 0.05);
+  --glass-surface-hover: rgba(255, 255, 255, 0.09);
+  --glass-surface-active: rgba(199, 138, 244, 0.16);
+  --glass-border: rgba(255, 255, 255, 0.11);
+  --glass-border-subtle: rgba(255, 255, 255, 0.07);
+  --glass-border-focus: rgba(199, 138, 244, 0.55);
+
+  /* Color Accents (from reference image) */
+  --accent-primary: #C78AF4;         /* Soft lilac / violet glow */
+  --accent-secondary: #F1A1C5;       /* Muted rose / magenta glow */
+  --accent-ambient: #E8A66C;         /* Warm amber touch */
+  --accent-gradient: linear-gradient(135deg, #C78AF4 0%, #F1A1C5 50%, #E8A66C 100%);
+  --accent-gradient-glow: linear-gradient(135deg, rgba(199, 138, 244, 0.35) 0%, rgba(241, 161, 197, 0.25) 100%);
+
+  /* Typography / Text Colors */
+  --text-primary: #FAF7FC;
+  --text-secondary: #B4ACBA;
+  --text-muted: #817887;
+  --text-accent: #C78AF4;
+
+  /* Status Colors */
+  --status-success-bg: rgba(52, 211, 153, 0.12);
+  --status-success-text: #34D399;
+  --status-success-border: rgba(52, 211, 153, 0.3);
+
+  --status-error-bg: rgba(248, 113, 113, 0.12);
+  --status-error-text: #F87171;
+  --status-error-border: rgba(248, 113, 113, 0.3);
+
+  --status-warning-bg: rgba(251, 191, 36, 0.12);
+  --status-warning-text: #FBBF24;
+  --status-warning-border: rgba(251, 191, 36, 0.3);
+
+  /* Typography Families */
+  --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Space Grotesk', var(--font-sans);
+
+  /* Shadows & Ambient Glows */
+  --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+  --shadow-card-hover: 0 18px 40px -10px rgba(199, 138, 244, 0.18);
+  --shadow-modal: 0 24px 60px -12px rgba(0, 0, 0, 0.85);
+  --shadow-floating-dock: 0 12px 40px rgba(0, 0, 0, 0.65), 0 0 25px rgba(199, 138, 244, 0.15);
+  --glow-violet: 0 0 35px -5px rgba(199, 138, 244, 0.3);
+  --glow-magenta: 0 0 35px -5px rgba(241, 161, 197, 0.25);
+
+  /* Radii */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-full: 9999px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  background-color: var(--color-bg-main);
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg-main);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Ambient cinematic background lighting matching reference image */
+  background-image:
+    radial-gradient(
+      ellipse at 85% 35%,
+      rgba(211, 113, 151, 0.26) 0%,
+      rgba(173, 76, 135, 0.15) 28%,
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse at 90% 75%,
+      rgba(232, 153, 91, 0.22) 0%,
+      rgba(205, 110, 95, 0.13) 30%,
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse at 20% 55%,
+      rgba(132, 67, 130, 0.09) 0%,
+      transparent 48%
+    );
+  background-attachment: fixed;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+::placeholder {
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
+select option {
+  background-color: var(--color-surface-elevated);
+  color: var(--text-primary);
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* Custom Scrollbars in dark glass aesthetic */
+::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(199, 138, 244, 0.35);
+}

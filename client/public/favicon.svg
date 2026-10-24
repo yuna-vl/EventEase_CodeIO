@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="17 19 38 38" fill="none">
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
+    .logo-element {
+      stroke: #FFFFFF;
+    }
+    @media (prefers-color-scheme: light) {
+      .logo-element {
+        stroke: #12111A;
+      }
+    }
+  </style>
+  <!-- Circular Ring of 'e' -->
+  <circle class="logo-element" cx="36" cy="38" r="15" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" />
+
+  <!-- The horizontal crossbar of 'e' -->
+  <line class="logo-element" x1="22" y1="38" x2="48" y2="38" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" />
+
+  <!-- Integrated Checkmark at bottom right -->
+  <path
+    class="logo-element"
+    d="M32 46L36.5 50L43.5 41"
+    stroke="#FFFFFF"
+    stroke-width="3.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

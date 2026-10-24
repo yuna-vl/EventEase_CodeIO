@@ -1,0 +1,26 @@
+{
+  "name": "eventease-live",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EventEase Live - Real-time Event Management & Participant Registration System",
+  "scripts": {
+    "dev:client": "npm --prefix client run dev",
+    "dev:server": "npm --prefix server run dev",
+    "build:client": "npm --prefix client run build",
+    "start:server": "npm --prefix server start",
+    "test:server": "npm --prefix server test",
+    "test:client": "npm --prefix client run test:api",
+    "test:rbac": "node server/test-role-auth.js",
+    "test:ownership": "node server/test-ownership-and-stats.js",
+    "audit:legacy": "node server/src/scripts/auditLegacyEvents.js",
+    "seed:organizer": "npm --prefix server run seed:organizer"
+  },
+  "keywords": [
+    "mern",
+    "react",
+    "express",
+    "vite"
+  ],
+  "author": "",
+  "license": "ISC"
+}

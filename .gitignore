@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+
+# Environment variables & secrets (CRITICAL)
+.env
+.env.*
+*.env
+**/.env
+**/.env.*
+**/*.env
+!**/.env.example
+
+# Secret keys, credentials & certificates
+*.pem
+*.key
+*.cert
+*.crt
+id_rsa*
+*.pfx
+
+# Production build outputs
+dist/
+**/dist/
+dist-ssr/
+build/
+**/build/
+*.local
+
+# Logs
+logs/
+**/logs/
+*.log
+**/*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Uploaded media (preserve uploads folder with .gitkeep)
+server/uploads/*
+!server/uploads/.gitkeep
